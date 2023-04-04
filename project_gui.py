@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox,simpledialog
+from tkinter import messagebox, simpledialog
 from project import Project
 from dynamodb import dynamodb_controller
 import uuid
@@ -33,7 +33,7 @@ class ProjectManagerGUI(tk.Tk):
         # 删除项目按钮
         self.delete_button = tk.Button(self, text="Delete Project", command=self.delete_project)
         self.delete_button.grid(row=1, column=0, padx=10, pady=10, sticky="e")
-        
+
         # 查找项目按钮
         self.search_button = tk.Button(self, text="Search", command=self.search_project)
         self.search_button.grid(row=2, column=0, padx=10, pady=10, sticky="w")
@@ -43,24 +43,35 @@ class ProjectManagerGUI(tk.Tk):
         self.sort_button.grid(row=2, column=0, padx=10, pady=10)
 
         # 添加子项目按钮
-        self.add_subproject_button = tk.Button(self, text="Add SubProject", command=self.add_subproject)
-        self.add_subproject_button.grid(row=2, column=0, padx=10, pady=10, sticky="e")
-
-        # 返回主列表按钮
-        self.reset_button = tk.Button(self, text="Back", command=self.reset_project_list)
-        self.reset_button.grid(row=3, column=0, padx=10, pady=10, sticky="w")
-
-        # 移除子项目按钮
-        self.remove_subproject_button = tk.Button(self, text="Remove SubProject", command=self.remove_subproject)
-        self.remove_subproject_button.grid(row=3, column=0, padx=10, pady=10)
+        self.refresh_button = tk.Button(self, text="refresh", command=self.refresh)
+        self.refresh_button.grid(row=2, column=0, padx=10, pady=10, sticky="e")
 
     def update_project_list(self):
         self.project_list.delete(0, tk.END)
         self.projects.clear()
         response = self.client.scan_table()
+
+        name = "Name".center(18, '_')
+        desc = "Description".center(78, '_')
+        progress = "Progress".center(13, '_')
+        due_date = "Due Date".center(15, '_')
+        output = f"{name}|{desc}|{progress}%|{due_date}"
+        self.project_list.insert(tk.END, output)
+
         for rstr in response:
-            self.projects.append(Project(rstr['id'], rstr['name'], rstr['description'], rstr['progress'], rstr['dueDate']))
-            self.project_list.insert(tk.END, f"{rstr['name']} - {rstr['description']} - {rstr['progress']}% - {rstr['dueDate']}")
+            self.projects.append(
+                Project(rstr['id'], rstr['name'], rstr['description'], rstr['progress'], rstr['dueDate'])
+            )
+
+            name = (rstr['name']).center(20, '_')
+            desc = (rstr['description'][:70] + '...' if len(rstr['description']) > 80 else rstr['description']).center(
+                80, '_')
+
+            progress = str(rstr['progress']).center(15, '_')
+            due_date = rstr['dueDate'].center(15, '_')
+
+            output = f"{name}|{desc}|{progress}%|{due_date}"
+            self.project_list.insert(tk.END, output)
 
     def add_project(self):
         project_details = self.get_project_details()
@@ -75,7 +86,7 @@ class ProjectManagerGUI(tk.Tk):
         if not selected_index:
             messagebox.showerror("You haven't select a project!")
             return
-        project = self.projects[selected_index[0]]
+        project = self.projects[selected_index[0] - 1]
         updated_project_details = self.get_project_details(project)
         if updated_project_details:
             uid, name, description, progress, dueDate = updated_project_details
@@ -89,64 +100,50 @@ class ProjectManagerGUI(tk.Tk):
         if not selected_index:
             messagebox.showerror("You haven't select a project!!")
             return
-        uid = self.projects[selected_index[0]].uid
+        uid = self.projects[selected_index[0] - 1].uid
         self.client.delete_plan(uid)
-        self.projects.pop(selected_index[0])
+        self.projects.pop(selected_index[0] - 1)
         self.update_project_list()
 
     def get_project_details(self, project=None):
         dialog = ProjectDialog(self, project, self.client)
         self.wait_window(dialog)
         return dialog.result
-        def search_project(self):
+
+    def search_project(self):
         search_term = tk.simpledialog.askstring("Search", "Enter the key word：")
         if search_term:
             matching_projects = [p for p in self.projects if search_term in p.name or search_term in p.description]
-            self.update_project_list(matching_projects)
+            self.update_sub_project_list(matching_projects)
 
     def sort_projects(self):
         self.projects.sort(key=lambda p: p.name)
-        self.update_project_list()
+        self.update_sub_project_list()
 
-    def add_subproject(self):
-        selected_index = self.project_list.curselection()
-        if not selected_index:
-            messagebox.showerror("Error!")
-            return
-
-        project = self.projects[selected_index[0]]
-        subproject_details = self.get_project_details()
-        if subproject_details:
-            name, description, progress = subproject_details
-            subproject = Project(name, description, progress)
-            project.add_subproject(subproject)
-            self.update_project_list()
-
-    def remove_subproject(self):
-        selected_index = self.project_list.curselection()
-        if not selected_index:
-            messagebox.showerror("Error!")
-            return
-
-        project = self.projects[selected_index[0]]
-        subproject_index = simpledialog.askinteger("Delete Subproject", "No：", minvalue=1, maxvalue=len(project.subprojects))
-        if subproject_index is not None:
-            project.remove_subproject(subproject_index - 1)
-            self.update_project_list()
-
-    def reset_project_list(self):
-        self.update_project_list()
-
-    def update_project_list(self, projects=None, indention=""):
+    def update_sub_project_list(self, projects=None, indention=""):
         if projects is None:
             projects = self.projects
-
         self.project_list.delete(0, tk.END)
+        name = "Name".center(18, '_')
+        desc = "Description".center(78, '_')
+        progress = "Progress".center(13, '_')
+        due_date = "Due Date".center(15, '_')
+        output = f"{name}|{desc}|{progress}%|{due_date}"
+        self.project_list.insert(tk.END, output)
         for project in projects:
-            self.project_list.insert(tk.END, f"{indention}{project.name} - {project.description} - {project.progress}%")
-            if project.subprojects:
-                self.update_project_list(project.subprojects, indention="  ")
-    
+            name = project.name.center(20, '_')
+            desc = (project.description[:70] + '...' if len(project.description) > 80 else project.description).center(
+                80,
+                '_')
+
+            progress = str(project.progress).center(15, '_')
+            due_date = project.dueDate.center(15, '_')
+
+            output = f"{name}|{desc}|{progress}%|{due_date}"
+            self.project_list.insert(tk.END, output)
+
+    def refresh(self):
+        self.update_project_list()
 
 
 class ProjectDialog(tk.Toplevel):
@@ -165,9 +162,8 @@ class ProjectDialog(tk.Toplevel):
             self.name_var.set(project.name)
             self.description_var.set(project.description)
             self.progress_var.set(project.progress)
-            self.due_date_var.set(project.dueDate)
         else:
-            self.uid = uuid.uuid4()
+            self.uid = str(uuid.uuid4())
 
     def create_widgets(self):
         # 项目名称
@@ -208,5 +204,6 @@ class ProjectDialog(tk.Toplevel):
         self.result = (self.uid, name, description, progress, dueDate)
 
         self.destroy()
+
     def cancel(self):
         self.destroy()
