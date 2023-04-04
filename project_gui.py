@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox,simpledialog
 from project import Project
 from dynamodb import dynamodb_controller
 import uuid
@@ -10,7 +10,7 @@ class ProjectManagerGUI(tk.Tk):
         super().__init__()
         self.client = dynamodb_controller()
         self.title("Project Management Tool (Group 11)")
-        self.geometry("800x600")
+        self.geometry("800x650")
 
         self.projects = []
 
@@ -19,7 +19,7 @@ class ProjectManagerGUI(tk.Tk):
 
     def create_widgets(self):
         # 项目列表框
-        self.project_list = tk.Listbox(self, width=100, height=20)
+        self.project_list = tk.Listbox(self, width=110, height=25)
         self.project_list.grid(row=0, column=0, padx=10, pady=10)
 
         # 添加项目按钮
@@ -33,6 +33,26 @@ class ProjectManagerGUI(tk.Tk):
         # 删除项目按钮
         self.delete_button = tk.Button(self, text="Delete Project", command=self.delete_project)
         self.delete_button.grid(row=1, column=0, padx=10, pady=10, sticky="e")
+        
+        # 查找项目按钮
+        self.search_button = tk.Button(self, text="Search", command=self.search_project)
+        self.search_button.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+
+        # 排序项目按钮
+        self.sort_button = tk.Button(self, text="Sort", command=self.sort_projects)
+        self.sort_button.grid(row=2, column=0, padx=10, pady=10)
+
+        # 添加子项目按钮
+        self.add_subproject_button = tk.Button(self, text="Add SubProject", command=self.add_subproject)
+        self.add_subproject_button.grid(row=2, column=0, padx=10, pady=10, sticky="e")
+
+        # 返回主列表按钮
+        self.reset_button = tk.Button(self, text="Back", command=self.reset_project_list)
+        self.reset_button.grid(row=3, column=0, padx=10, pady=10, sticky="w")
+
+        # 移除子项目按钮
+        self.remove_subproject_button = tk.Button(self, text="Remove SubProject", command=self.remove_subproject)
+        self.remove_subproject_button.grid(row=3, column=0, padx=10, pady=10)
 
     def update_project_list(self):
         self.project_list.delete(0, tk.END)
@@ -78,6 +98,55 @@ class ProjectManagerGUI(tk.Tk):
         dialog = ProjectDialog(self, project, self.client)
         self.wait_window(dialog)
         return dialog.result
+        def search_project(self):
+        search_term = tk.simpledialog.askstring("Search", "Enter the key word：")
+        if search_term:
+            matching_projects = [p for p in self.projects if search_term in p.name or search_term in p.description]
+            self.update_project_list(matching_projects)
+
+    def sort_projects(self):
+        self.projects.sort(key=lambda p: p.name)
+        self.update_project_list()
+
+    def add_subproject(self):
+        selected_index = self.project_list.curselection()
+        if not selected_index:
+            messagebox.showerror("Error!")
+            return
+
+        project = self.projects[selected_index[0]]
+        subproject_details = self.get_project_details()
+        if subproject_details:
+            name, description, progress = subproject_details
+            subproject = Project(name, description, progress)
+            project.add_subproject(subproject)
+            self.update_project_list()
+
+    def remove_subproject(self):
+        selected_index = self.project_list.curselection()
+        if not selected_index:
+            messagebox.showerror("Error!")
+            return
+
+        project = self.projects[selected_index[0]]
+        subproject_index = simpledialog.askinteger("Delete Subproject", "No：", minvalue=1, maxvalue=len(project.subprojects))
+        if subproject_index is not None:
+            project.remove_subproject(subproject_index - 1)
+            self.update_project_list()
+
+    def reset_project_list(self):
+        self.update_project_list()
+
+    def update_project_list(self, projects=None, indention=""):
+        if projects is None:
+            projects = self.projects
+
+        self.project_list.delete(0, tk.END)
+        for project in projects:
+            self.project_list.insert(tk.END, f"{indention}{project.name} - {project.description} - {project.progress}%")
+            if project.subprojects:
+                self.update_project_list(project.subprojects, indention="  ")
+    
 
 
 class ProjectDialog(tk.Toplevel):
