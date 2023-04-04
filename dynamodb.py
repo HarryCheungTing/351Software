@@ -6,8 +6,8 @@ class dynamodb_controller:
     def __init__(self):
         self.REGION = "ap-northeast-1"
         self.table_name = "plan"
-        self.credential = "AKIA5FUAVEKNGVVWHWHX"
-        self.pw = "cc5EmPE5CQoAO/Ve/tfUzQhbU0EtQXI54Um3CTJJ"
+        self.credential = "ASK HARRY LAU"
+        self.pw = "ASK HARRY LAU"
         self.client = boto3.client('dynamodb', aws_access_key_id=self.credential, aws_secret_access_key=self.pw,
                                    region_name=self.REGION)
         self.resource = boto3.resource('dynamodb', aws_access_key_id=self.credential, aws_secret_access_key=self.pw,
