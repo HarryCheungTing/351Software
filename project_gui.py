@@ -63,7 +63,7 @@ class ProjectManagerGUI(tk.Tk):
                 Project(rstr['id'], rstr['name'], rstr['description'], rstr['progress'], rstr['dueDate'])
             )
 
-            name = (rstr['name']).center(20, '_')
+            name = (rstr['name'[:17]]).center(20, '_')
             desc = (rstr['description'][:70] + '...' if len(rstr['description']) > 80 else rstr['description']).center(
                 80, '_')
 
@@ -162,6 +162,7 @@ class ProjectDialog(tk.Toplevel):
             self.name_var.set(project.name)
             self.description_var.set(project.description)
             self.progress_var.set(project.progress)
+            self.due_date_var.set(project.dueDate)
         else:
             self.uid = str(uuid.uuid4())
 
